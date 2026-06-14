@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cosmic Finger Tracker — By Arif</title>
+
+  <!-- Three.js via CDN -->
+  <script src="[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js)"></script>
+
+  <!-- MediaPipe Hand Landmarker -->
+  <script type="module" src="js/main.js"></script>
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Canvas Three.js akan di-mount di sini -->
+  <div id="canvas-container"></div>
+
+  <!-- Video webcam (tersembunyi, hanya untuk input MediaPipe) -->
+  <video id="webcam" autoplay playsinline muted></video>
+
+  <!-- UI Overlay -->
+  <div id="ui-overlay">
+    <div id="status-panel">
+      <div id="finger-count">✋ Waiting...</div>
+      <div id="gesture-label">Show your hand to begin</div>
+      <div id="fps-counter">FPS: --</div>
+    </div>
+
+    <div id="legend">
+      <h3>✨ Gesture Guide</h3>
+      <div class="legend-item"><span class="icon">☝️</span> 1 Finger → "By Arif"</div>
+      <div class="legend-item"><span class="icon">✌️</span> 2 Fingers → Saturn</div>
+      <div class="legend-item"><span class="icon">🤟</span> 3 Fingers → 3D Cube</div>
+      <div class="legend-item"><span class="icon">🫰</span> Love Sign → Heart</div>
+      <div class="legend-item"><span class="icon">🖐️</span> 5 Fingers → Scatter</div>
+    </div>
+  </div>
+
+  <!-- Loading screen -->
+  <div id="loading-screen">
+    <div class="loading-content">
+      <div class="cosmic-logo">🌌</div>
+      <h1>Cosmic Finger Tracker</h1>
+      <p>Initializing hand tracking...</p>
+      <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
+      <p class="hint">Please allow camera access when prompted</p>
+    </div>
+  </div>
+
+</body>
+</html>
