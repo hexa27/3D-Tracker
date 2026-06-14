@@ -1,0 +1,207 @@
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000008;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #e0e8ff;
+}
+
+/* ============================================
+   CANVAS CONTAINER
+   ============================================ */
+#canvas-container {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 1;
+}
+
+#canvas-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ============================================
+   WEBCAM (hidden, used only by MediaPipe)
+   ============================================ */
+#webcam {
+  position: fixed;
+  bottom: 16px; right: 16px;
+  width: 180px;
+  height: 135px;
+  border-radius: 12px;
+  border: 1px solid rgba(80, 180, 255, 0.3);
+  z-index: 10;
+  opacity: 0.7;
+  transform: scaleX(-1); /* mirror */
+  object-fit: cover;
+  box-shadow: 0 0 20px rgba(80, 180, 255, 0.2);
+}
+
+/* ============================================
+   UI OVERLAY
+   ============================================ */
+#ui-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Status Panel — top left */
+#status-panel {
+  position: absolute;
+  top: 20px; left: 20px;
+  background: rgba(5, 8, 30, 0.7);
+  border: 1px solid rgba(80, 180, 255, 0.25);
+  border-radius: 14px;
+  padding: 14px 20px;
+  backdrop-filter: blur(10px);
+  min-width: 200px;
+}
+
+#finger-count {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #7df9ff;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 12px rgba(125, 249, 255, 0.7);
+}
+
+#gesture-label {
+  font-size: 0.85rem;
+  color: #a0b4e0;
+  margin-top: 4px;
+}
+
+#fps-counter {
+  font-size: 0.75rem;
+  color: #5a7aaa;
+  margin-top: 8px;
+  font-family: monospace;
+}
+
+/* Legend — top right */
+#legend {
+  position: absolute;
+  top: 20px; right: 20px;
+  background: rgba(5, 8, 30, 0.7);
+  border: 1px solid rgba(80, 180, 255, 0.2);
+  border-radius: 14px;
+  padding: 14px 18px;
+  backdrop-filter: blur(10px);
+}
+
+#legend h3 {
+  font-size: 0.85rem;
+  color: #7df9ff;
+  margin-bottom: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.legend-item {
+  font-size: 0.78rem;
+  color: #8fa8d0;
+  margin: 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-item .icon { font-size: 1rem; }
+
+/* ============================================
+   LOADING SCREEN
+   ============================================ */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, #060d2e 0%, #000008 80%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.8s ease;
+}
+
+#loading-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-content {
+  text-align: center;
+  max-width: 400px;
+  padding: 0 20px;
+}
+
+.cosmic-logo {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(125, 249, 255, 0.4)); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 24px rgba(125, 249, 255, 0.9)); }
+}
+
+.loading-content h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #7df9ff;
+  text-shadow: 0 0 20px rgba(125, 249, 255, 0.6);
+  margin-bottom: 10px;
+}
+
+.loading-content p {
+  font-size: 0.9rem;
+  color: #7090c0;
+  margin-bottom: 24px;
+}
+
+.loading-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.loading-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3a6fff, #7df9ff, #c084fc);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 12px rgba(125, 249, 255, 0.6);
+}
+
+.hint {
+  font-size: 0.75rem !important;
+  color: #445577 !important;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 600px) {
+  #webcam { width: 120px; height: 90px; bottom: 10px; right: 10px; }
+  #legend { display: none; }
+  #status-panel { top: 10px; left: 10px; padding: 10px 14px; }
+  #finger-count { font-size: 1.1rem; }
+  }
