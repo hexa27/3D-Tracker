@@ -1,207 +1,237 @@
-/* ============================================
-   RESET & BASE
-   ============================================ */
-*, *::before, *::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* =====================================================
+   COSMIC HAND TRACKER — style.css
+   ===================================================== */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #020408;
+  --cyan:      #00d4ff;
+  --purple:    #7b2fff;
+  --blue:      #1a6bff;
+  --magenta:   #ff2fff;
+  --white:     #e8f4ff;
+  --glass:     rgba(10,20,40,0.72);
+  --border:    rgba(0,212,255,0.18);
+  --font:      'Courier New', Courier, monospace;
 }
 
 html, body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #000008;
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  color: #e0e8ff;
-}
-
-/* ============================================
-   CANVAS CONTAINER
-   ============================================ */
-#canvas-container {
-  position: fixed;
-  top: 0; left: 0;
   width: 100%; height: 100%;
-  z-index: 1;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: var(--font);
+  color: var(--white);
 }
 
-#canvas-container canvas {
+/* ── Hidden webcam ─────────────────────────────── */
+#webcam {
+  position: fixed;
+  top: -9999px; left: -9999px;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Three.js canvas ────────────────────────────── */
+#three-canvas {
+  position: fixed;
+  inset: 0;
   display: block;
   width: 100% !important;
   height: 100% !important;
 }
 
-/* ============================================
-   WEBCAM (hidden, used only by MediaPipe)
-   ============================================ */
-#webcam {
+/* ── MediaPipe debug canvas (hidden) ────────────── */
+#mp-canvas {
   position: fixed;
-  bottom: 16px; right: 16px;
-  width: 180px;
-  height: 135px;
-  border-radius: 12px;
-  border: 1px solid rgba(80, 180, 255, 0.3);
-  z-index: 10;
-  opacity: 0.7;
-  transform: scaleX(-1); /* mirror */
-  object-fit: cover;
-  box-shadow: 0 0 20px rgba(80, 180, 255, 0.2);
-}
-
-/* ============================================
-   UI OVERLAY
-   ============================================ */
-#ui-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: 20;
+  top: -9999px; left: -9999px;
+  width: 1px; height: 1px;
   pointer-events: none;
 }
 
-/* Status Panel — top left */
-#status-panel {
+/* ── UI Overlay ─────────────────────────────────── */
+#ui-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Status bar */
+#status-bar {
   position: absolute;
-  top: 20px; left: 20px;
-  background: rgba(5, 8, 30, 0.7);
-  border: 1px solid rgba(80, 180, 255, 0.25);
-  border-radius: 14px;
-  padding: 14px 20px;
-  backdrop-filter: blur(10px);
-  min-width: 200px;
+  top: 20px; left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  padding: 10px 22px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
-#finger-count {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #7df9ff;
-  letter-spacing: 0.04em;
-  text-shadow: 0 0 12px rgba(125, 249, 255, 0.7);
-}
-
-#gesture-label {
-  font-size: 0.85rem;
-  color: #a0b4e0;
-  margin-top: 4px;
-}
-
-#fps-counter {
-  font-size: 0.75rem;
-  color: #5a7aaa;
-  margin-top: 8px;
-  font-family: monospace;
-}
-
-/* Legend — top right */
-#legend {
-  position: absolute;
-  top: 20px; right: 20px;
-  background: rgba(5, 8, 30, 0.7);
-  border: 1px solid rgba(80, 180, 255, 0.2);
-  border-radius: 14px;
-  padding: 14px 18px;
-  backdrop-filter: blur(10px);
-}
-
-#legend h3 {
-  font-size: 0.85rem;
-  color: #7df9ff;
-  margin-bottom: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.legend-item {
-  font-size: 0.78rem;
-  color: #8fa8d0;
-  margin: 5px 0;
+.status-item {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
-.legend-item .icon { font-size: 1rem; }
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #555;
+  box-shadow: 0 0 0 0 transparent;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+.dot.active {
+  background: #00ff88;
+  box-shadow: 0 0 8px 2px #00ff8880;
+  animation: pulse-green 2s ease-in-out infinite;
+}
+.dot.error {
+  background: #ff4444;
+  box-shadow: 0 0 8px 2px #ff444480;
+}
+.dot.dot-blue {
+  background: var(--cyan);
+  box-shadow: 0 0 8px 2px #00d4ff60;
+}
 
-/* ============================================
-   LOADING SCREEN
-   ============================================ */
-#loading-screen {
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 8px 2px #00ff8880; }
+  50%       { box-shadow: 0 0 16px 4px #00ff88cc; }
+}
+
+/* Hint panel */
+#hint-panel {
+  position: absolute;
+  bottom: 30px; left: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 20px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+.hint-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hint-icon { font-size: 16px; }
+
+/* ── Camera Deny Overlay ────────────────────────── */
+#deny-overlay {
   position: fixed;
   inset: 0;
-  background: radial-gradient(ellipse at center, #060d2e 0%, #000008 80%);
-  z-index: 100;
+  background: rgba(2,4,8,0.96);
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 100;
+}
+#deny-overlay.hidden { display: none; }
+
+.deny-box {
+  text-align: center;
+  max-width: 420px;
+  padding: 48px 40px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  backdrop-filter: blur(24px);
+}
+.deny-icon { font-size: 56px; margin-bottom: 20px; }
+.deny-box h2 {
+  font-size: 20px;
+  color: var(--cyan);
+  margin-bottom: 16px;
+  letter-spacing: 0.08em;
+}
+.deny-box p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #a0b8d0;
+  margin-bottom: 12px;
+}
+.deny-box button {
+  margin-top: 20px;
+  padding: 12px 36px;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  border: none;
+  border-radius: 40px;
+  color: #fff;
+  font-family: var(--font);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.deny-box button:hover { opacity: 0.8; }
+
+/* ── Loading Overlay ────────────────────────────── */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
   transition: opacity 0.8s ease;
 }
-
-#loading-screen.hidden {
+#loading-overlay.fade-out {
   opacity: 0;
   pointer-events: none;
 }
 
-.loading-content {
-  text-align: center;
-  max-width: 400px;
-  padding: 0 20px;
+.loading-content { text-align: center; }
+
+.cosmos-spinner {
+  width: 64px; height: 64px;
+  margin: 0 auto 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--cyan);
+  border-right-color: var(--purple);
+  animation: spin 1.2s linear infinite;
+  box-shadow: 0 0 24px var(--cyan), inset 0 0 24px rgba(123,47,255,0.3);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#loading-text {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--cyan);
+  text-shadow: 0 0 12px var(--cyan);
+  animation: blink-text 1.5s ease-in-out infinite;
+}
+@keyframes blink-text {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
 }
 
-.cosmic-logo {
-  font-size: 4rem;
-  margin-bottom: 20px;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(125, 249, 255, 0.4)); }
-  50% { transform: scale(1.08); filter: drop-shadow(0 0 24px rgba(125, 249, 255, 0.9)); }
-}
-
-.loading-content h1 {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #7df9ff;
-  text-shadow: 0 0 20px rgba(125, 249, 255, 0.6);
-  margin-bottom: 10px;
-}
-
-.loading-content p {
-  font-size: 0.9rem;
-  color: #7090c0;
-  margin-bottom: 24px;
-}
-
-.loading-bar {
-  width: 100%;
-  height: 4px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 16px;
-}
-
-.loading-fill {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, #3a6fff, #7df9ff, #c084fc);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-  box-shadow: 0 0 12px rgba(125, 249, 255, 0.6);
-}
-
-.hint {
-  font-size: 0.75rem !important;
-  color: #445577 !important;
-}
-
-/* ============================================
-   RESPONSIVE
-   ============================================ */
+/* ── Responsive tweaks ──────────────────────────── */
 @media (max-width: 600px) {
-  #webcam { width: 120px; height: 90px; bottom: 10px; right: 10px; }
-  #legend { display: none; }
-  #status-panel { top: 10px; left: 10px; padding: 10px 14px; }
-  #finger-count { font-size: 1.1rem; }
+  #status-bar {
+    flex-direction: column;
+    gap: 8px;
+    top: 12px;
+    padding: 10px 16px;
+    border-radius: 16px;
   }
+  #hint-panel { font-size: 10px; padding: 12px 14px; }
+}

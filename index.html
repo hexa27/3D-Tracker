@@ -1,54 +1,77 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cosmic Finger Tracker — By Arif</title>
-
-  <!-- Three.js via CDN -->
-  <script src="[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js)"></script>
-
-  <!-- MediaPipe Hand Landmarker -->
-  <script type="module" src="js/main.js"></script>
-
+  <title>Cosmic Hand Tracker — By Arif</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
-  <!-- Canvas Three.js akan di-mount di sini -->
-  <div id="canvas-container"></div>
-
-  <!-- Video webcam (tersembunyi, hanya untuk input MediaPipe) -->
+  <!-- Camera feed (hidden, used for MediaPipe) -->
   <video id="webcam" autoplay playsinline muted></video>
+
+  <!-- Three.js canvas -->
+  <canvas id="three-canvas"></canvas>
+
+  <!-- MediaPipe canvas for landmark overlay (debug, hidden) -->
+  <canvas id="mp-canvas"></canvas>
 
   <!-- UI Overlay -->
   <div id="ui-overlay">
-    <div id="status-panel">
-      <div id="finger-count">✋ Waiting...</div>
-      <div id="gesture-label">Show your hand to begin</div>
-      <div id="fps-counter">FPS: --</div>
+    <div id="status-bar">
+      <div class="status-item" id="cam-status">
+        <span class="dot" id="cam-dot"></span>
+        <span id="cam-label">Camera: Connecting…</span>
+      </div>
+      <div class="status-item" id="track-status">
+        <span class="dot" id="track-dot"></span>
+        <span id="track-label">Hand: Waiting…</span>
+      </div>
+      <div class="status-item" id="gesture-status">
+        <span class="dot dot-blue" id="gesture-dot"></span>
+        <span id="gesture-label">Gesture: —</span>
+      </div>
     </div>
 
-    <div id="legend">
-      <h3>✨ Gesture Guide</h3>
-      <div class="legend-item"><span class="icon">☝️</span> 1 Finger → "By Arif"</div>
-      <div class="legend-item"><span class="icon">✌️</span> 2 Fingers → Saturn</div>
-      <div class="legend-item"><span class="icon">🤟</span> 3 Fingers → 3D Cube</div>
-      <div class="legend-item"><span class="icon">🫰</span> Love Sign → Heart</div>
-      <div class="legend-item"><span class="icon">🖐️</span> 5 Fingers → Scatter</div>
+    <div id="hint-panel">
+      <div class="hint-row"><span class="hint-icon">☝️</span><span>"By Arif" Text</span></div>
+      <div class="hint-row"><span class="hint-icon">✌️</span><span>Saturn Planet</span></div>
+      <div class="hint-row"><span class="hint-icon">🤟</span><span>3 Fingers → Cube</span></div>
+      <div class="hint-row"><span class="hint-icon">🫰</span><span>Love Sign → Heart</span></div>
+      <div class="hint-row"><span class="hint-icon">🤚</span><span>5 Fingers → Scatter</span></div>
     </div>
   </div>
 
-  <!-- Loading screen -->
-  <div id="loading-screen">
+  <!-- Camera deny overlay -->
+  <div id="deny-overlay" class="hidden">
+    <div class="deny-box">
+      <div class="deny-icon">📷</div>
+      <h2>Camera Access Required</h2>
+      <p>This experience needs your camera to track hand gestures and control the cosmic particles.</p>
+      <p>Please allow camera access in your browser settings and refresh the page.</p>
+      <button onclick="location.reload()">Retry</button>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay">
     <div class="loading-content">
-      <div class="cosmic-logo">🌌</div>
-      <h1>Cosmic Finger Tracker</h1>
-      <p>Initializing hand tracking...</p>
-      <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
-      <p class="hint">Please allow camera access when prompted</p>
+      <div class="cosmos-spinner"></div>
+      <p id="loading-text">Initializing Cosmic Engine…</p>
     </div>
   </div>
 
+  <!-- Scripts (order matters) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

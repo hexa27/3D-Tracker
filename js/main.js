@@ -1,247 +1,241 @@
-// ============================================
-// MAIN — Entry point aplikasi
-// Inisialisasi Three.js, HandTracker,
-// ParticleSystem, dan render loop utama.
-// ============================================
+// js/main.js
+// Main application orchestrator
 
-import { HandTracker }     from './HandTracker.js';
-import { ParticleSystem }  from './ParticleSystem.js';
-import { FormationBuilder } from './FormationBuilder.js';
+import * as THREE from 'three';
+import { CosmicBackground } from './cosmicBackground.js';
+import { ParticleSystem }   from './particleSystem.js';
+import { HandTracker, GESTURE } from './handTracker.js';
 
-// ────────────────────────────────────────────
-// CONFIG
-// ────────────────────────────────────────────
-const PARTICLE_COUNT = 2000;
+/* ── DOM references ─────────────────────────────────────── */
+const videoEl    = document.getElementById('webcam');
+const canvasEl   = document.getElementById('three-canvas');
+const loadOver   = document.getElementById('loading-overlay');
+const loadText   = document.getElementById('loading-text');
+const denyOver   = document.getElementById('deny-overlay');
+const camDot     = document.getElementById('cam-dot');
+const camLabel   = document.getElementById('cam-label');
+const trackDot   = document.getElementById('track-dot');
+const trackLabel = document.getElementById('track-label');
+const gestDot    = document.getElementById('gesture-dot');
+const gestLabel  = document.getElementById('gesture-label');
 
-// ────────────────────────────────────────────
-// THREE.JS SETUP
-// ────────────────────────────────────────────
-const container = document.getElementById('canvas-container');
-const W = window.innerWidth;
-const H = window.innerHeight;
+/* ── Gesture display names ──────────────────────────────── */
+const GESTURE_NAMES = {
+  [GESTURE.NONE]:  '—',
+  [GESTURE.ONE]:   '☝️ "By Arif"',
+  [GESTURE.TWO]:   '✌️ Saturn',
+  [GESTURE.THREE]: '🤟 Cube',
+  [GESTURE.LOVE]:  '🫰 Heart',
+  [GESTURE.FIVE]:  '🤚 Scatter',
+};
 
-// Scene
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000510);
+/* ── Three.js Setup ─────────────────────────────────────── */
+const renderer = new THREE.WebGLRenderer({
+  canvas: canvasEl,
+  antialias: false,
+  powerPreference: 'high-performance',
+  alpha: false,
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x020408, 1);
 
-// Camera perspektif
-const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 200);
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
 camera.position.set(0, 0, 12);
 
-// Renderer — antialias minimal untuk performa
-const renderer = new THREE.WebGLRenderer({
-  antialias      : false,
-  powerPreference: 'high-performance',
-  alpha          : false
+/* ── Resize handler ─────────────────────────────────────── */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
-renderer.setSize(W, H);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // clamp DPR
-renderer.outputEncoding = THREE.sRGBEncoding;
-container.appendChild(renderer.domElement);
 
-// Ambient fog warna kosmik
-scene.fog = new THREE.FogExp2(0x000510, 0.008);
+/* ── Build scene ────────────────────────────────────────── */
+const bg      = new CosmicBackground(scene);
+const particles = new ParticleSystem(scene);
 
-// ────────────────────────────────────────────
-// PARTICLE SYSTEM
-// ────────────────────────────────────────────
-const particleSystem = new ParticleSystem(scene, camera, renderer, PARTICLE_COUNT);
+/* ── Hand tracker ───────────────────────────────────────── */
+const tracker = new HandTracker();
 
-// Pre-build semua formasi (dilakukan sekali, bukan per-frame)
-const formations = {
-  none   : FormationBuilder.buildFloatFormation(PARTICLE_COUNT),
-  text   : FormationBuilder.buildTextFormation(PARTICLE_COUNT),
-  saturn : FormationBuilder.buildSaturnFormation(PARTICLE_COUNT),
-  cube   : FormationBuilder.buildCubeFormation(PARTICLE_COUNT),
-  heart  : FormationBuilder.buildHeartFormation(PARTICLE_COUNT),
-  scatter: FormationBuilder.buildScatterFormation(PARTICLE_COUNT)
-};
+/* ── Hand → world space conversion ─────────────────────── */
+// MediaPipe gives normalized [0..1] coordinates
+// We map to world space based on camera frustum at z=0
+const WORLD_W = 14; // horizontal world span
+const WORLD_H =  8; // vertical world span
 
-// Set formasi awal: float bebas
-particleSystem.setFormation(formations.none, 'none');
+// Lerp helper (no allocation)
+function lerp(a, b, t) { return a + (b - a) * t; }
 
-// ────────────────────────────────────────────
-// HAND TRACKER
-// ────────────────────────────────────────────
-const handTracker = new HandTracker();
+// Smooth hand world position (persistent objects to avoid GC)
+const _smoothHandWorld = new THREE.Vector3(0, 0, 0);
+const _targetHandWorld = new THREE.Vector3(0, 0, 0);
+const _handRotMat      = new THREE.Matrix4();
+const _euler           = new THREE.Euler();
+const _quat            = new THREE.Quaternion();
 
-// State tangan yang di-lerp untuk UI dan partikel
-let smoothHandX  = 0;
-let smoothHandY  = 0;
-let smoothRot    = 0;
+let _prevGesture = GESTURE.NONE;
+let _handVisible = false;
+let _handLostFrames = 0;
+const HAND_LOST_THRESHOLD = 12;
 
-// Lerp tambahan di main loop (di atas lerp HandTracker)
-const HAND_LERP  = 0.12;
+/* ── Main animation loop ────────────────────────────────── */
+let _startTime = null;
+let _prevTime  = null;
+let _frameCount = 0;
 
-// ────────────────────────────────────────────
-// WEBCAM
-// ────────────────────────────────────────────
-const video = document.getElementById('webcam');
-
-async function startWebcam() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: 640, height: 480 },
-      audio: false
-    });
-    video.srcObject = stream;
-    await new Promise(res => video.onloadedmetadata = res);
-    video.play();
-    console.log('[Main] Webcam started');
-  } catch (e) {
-    console.error('[Main] Webcam error:', e);
-    updateUI('none', '⚠️ Camera denied');
-  }
-}
-
-// ────────────────────────────────────────────
-// UI HELPERS
-// ────────────────────────────────────────────
-const fingerCountEl  = document.getElementById('finger-count');
-const gestureLabelEl = document.getElementById('gesture-label');
-const fpsEl          = document.getElementById('fps-counter');
-const loadingScreen  = document.getElementById('loading-screen');
-const loadingFill    = document.getElementById('loading-fill');
-
-const gestureLabels = {
-  none   : 'Floating freely…',
-  text   : '✍️ Forming "By Arif"',
-  saturn : '🪐 Forming Saturn',
-  cube   : '📦 Forming 3D Cube',
-  heart  : '❤️ Forming Heart',
-  scatter: '💥 Scattering!'
-};
-
-const fingerIcons = { 0:'✋', 1:'☝️', 2:'✌️', 3:'🤟', 4:'🖖', 5:'🖐️' };
-
-function updateUI(gesture, label = null) {
-  const fingers  = handTracker.smoothed.fingerCount;
-  const icon     = fingerIcons[fingers] || '✋';
-  fingerCountEl.textContent  = `${icon} ${fingers} finger${fingers !== 1 ? 's' : ''}`;
-  gestureLabelEl.textContent = label || gestureLabels[gesture] || '...';
-}
-
-// ────────────────────────────────────────────
-// FPS COUNTER (lightweight)
-// ────────────────────────────────────────────
-let fpsFrames = 0;
-let fpsLast   = performance.now();
-let fpsValue  = 60;
-
-function tickFPS() {
-  fpsFrames++;
-  const now = performance.now();
-  if (now - fpsLast >= 500) {
-    fpsValue  = Math.round(fpsFrames * 1000 / (now - fpsLast));
-    fpsFrames = 0;
-    fpsLast   = now;
-    fpsEl.textContent = `FPS: ${fpsValue}`;
-    // Adaptive: turunkan partikel kalau FPS drop (opsional monitoring)
-  }
-}
-
-// ────────────────────────────────────────────
-// GESTURE → FORMATION MAPPING
-// ────────────────────────────────────────────
-handTracker.onGestureChange = (gesture) => {
-  // Ambil formation yang sudah di-cache
-  const formation = formations[gesture] || formations.none;
-  particleSystem.setFormation(formation, gesture);
-  updateUI(gesture);
-
-  // Scatter: setelah 2.5 detik otomatis kembali ke float
-  if (gesture === 'scatter') {
-    setTimeout(() => {
-      // Hanya reset jika masih di scatter (tangan mungkin sudah berubah)
-      if (handTracker.smoothed.gesture === 'scatter' ||
-          handTracker.smoothed.gesture === 'none') {
-        particleSystem.setFormation(formations.none, 'none');
-        particleSystem.morphTarget = 'none';
-        updateUI('none');
-      }
-    }, 2500);
-  }
-};
-
-// ────────────────────────────────────────────
-// RENDER LOOP
-// ────────────────────────────────────────────
-let startTime = performance.now();
-
-function animate() {
+function animate(timestamp) {
   requestAnimationFrame(animate);
 
-  const time = (performance.now() - startTime) / 1000;
+  if (_startTime === null) _startTime = timestamp;
+  const time  = (timestamp - _startTime) * 0.001;
+  const delta = _prevTime !== null ? (timestamp - _prevTime) * 0.001 : 0.016;
+  _prevTime = timestamp;
 
-  // ── Hand tracking (throttled di dalam processFrame)
-  handTracker.processFrame(video);
+  // ── Hand tracking ──────────────────────────────────────
+  const hand = tracker.detect(timestamp);
 
-  // ── Smooth lerp posisi tangan di main loop (lapisan kedua)
-  const hs = handTracker.smoothed;
-  smoothHandX = smoothHandX + (hs.handX - smoothHandX) * HAND_LERP;
-  smoothHandY = smoothHandY + (hs.handY - smoothHandY) * HAND_LERP;
+  if (hand && hand.gesture !== GESTURE.NONE) {
+    _handLostFrames = 0;
+    _handVisible = true;
 
-  // Lerp sudut (hindari wrap jump)
-  let rotDiff = hs.rotation - smoothRot;
-  while (rotDiff >  Math.PI) rotDiff -= Math.PI * 2;
-  while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-  smoothRot += rotDiff * HAND_LERP;
+    // Map hand center from normalized [0..1] to world space
+    // Flip X because webcam is mirrored
+    const nx = 1.0 - hand.pos.x;
+    const ny = hand.pos.y;
 
-  // ── Update partikel
-  particleSystem.update(time, smoothHandX, smoothHandY, smoothRot);
+    // Depth estimation from wrist Z (roughly -0.1 to 0.1 range)
+    const depthZ = hand.pos.z;
+    const depth  = Math.max(0.3, Math.min(2.2, 1.0 - depthZ * 8));
 
-  // ── Render
-  renderer.render(scene, camera);
+    _targetHandWorld.set(
+      (nx - 0.5) * WORLD_W,
+      -(ny - 0.5) * WORLD_H,
+      0
+    );
 
-  tickFPS();
-}
+    // Smooth world position
+    const posAlpha = 0.18;
+    _smoothHandWorld.x = lerp(_smoothHandWorld.x, _targetHandWorld.x, posAlpha);
+    _smoothHandWorld.y = lerp(_smoothHandWorld.y, _targetHandWorld.y, posAlpha);
+    _smoothHandWorld.z = lerp(_smoothHandWorld.z, _targetHandWorld.z, posAlpha);
 
-// ────────────────────────────────────────────
-// RESIZE HANDLER
-// ────────────────────────────────────────────
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-});
+    particles.handPos.copy(_smoothHandWorld);
+    particles.handScale = lerp(particles.handScale, depth, 0.12);
 
-// ────────────────────────────────────────────
-// INIT — LOADING SEQUENCE
-// ────────────────────────────────────────────
-async function init() {
-  // Progress bar animasi
-  let progress = 0;
-  const progressInterval = setInterval(() => {
-    progress = Math.min(progress + Math.random() * 15, 85);
-    loadingFill.style.width = progress + '%';
-  }, 200);
+    // Compute hand rotation from wrist + index MCP direction
+    const wrist    = hand.wrist;
+    const tips     = hand.tips;
+    if (tips && tips[0] && tips[1]) {
+      // Approximate rotation: use wrist-to-indexTip as "up" reference
+      const dx = (1 - tips[1].x) - (1 - wrist.x);
+      const dy = -(tips[1].y - wrist.y);
+      const angle = Math.atan2(dx, dy);
+      _euler.set(0, 0, angle);
+      _quat.setFromEuler(_euler);
+      _handRotMat.makeRotationFromQuaternion(_quat);
+      // Smooth rotation
+      const curRot = new THREE.Euler().setFromRotationMatrix(particles.handRot);
+      curRot.z = lerp(curRot.z, angle, 0.15);
+      particles.handRot.makeRotationZ(curRot.z);
+    }
 
-  try {
-    // Start webcam & MediaPipe secara paralel
-    await Promise.all([
-      startWebcam(),
-      handTracker.init()
-    ]);
-  } catch (e) {
-    console.error('[Main] Init error:', e);
+    // Gesture change
+    if (hand.gesture !== _prevGesture) {
+      _prevGesture = hand.gesture;
+      particles.setGesture(hand.gesture);
+      gestLabel.textContent = 'Gesture: ' + (GESTURE_NAMES[hand.gesture] || '—');
+    }
+
+    trackDot.className   = 'dot active';
+    trackLabel.textContent = 'Hand: Detected';
+
+  } else {
+    _handLostFrames++;
+    if (_handLostFrames > HAND_LOST_THRESHOLD) {
+      if (_handVisible) {
+        _handVisible = false;
+        // Only switch to NONE if we're not already scattered
+        if (_prevGesture !== GESTURE.NONE) {
+          _prevGesture = GESTURE.NONE;
+          particles.setGesture(GESTURE.NONE);
+          gestLabel.textContent = 'Gesture: —';
+        }
+      }
+      trackDot.className   = 'dot';
+      trackLabel.textContent = 'Hand: Waiting…';
+    }
   }
 
-  // Selesai
-  clearInterval(progressInterval);
-  loadingFill.style.width = '100%';
-  await new Promise(r => setTimeout(r, 400));
+  // ── Update systems ──────────────────────────────────────
+  bg.update(time);
+  particles.update(time, delta);
 
-  // Sembunyikan loading screen
-  loadingScreen.classList.add('hidden');
-  setTimeout(() => { loadingScreen.style.display = 'none'; }, 900);
-
-  // Mulai render loop
-  animate();
-  console.log('[Main] Application started');
+  // ── Render ─────────────────────────────────────────────
+  renderer.render(scene, camera);
 }
 
-init();
-    
+/* ── Camera setup ───────────────────────────────────────── */
+async function setupCamera() {
+  setLoading('Requesting camera access…');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width:       { ideal: 640 },
+        height:      { ideal: 480 },
+        facingMode:  'user',
+        frameRate:   { ideal: 30 },
+      },
+      audio: false,
+    });
+
+    videoEl.srcObject = stream;
+
+    await new Promise((resolve, reject) => {
+      videoEl.onloadedmetadata = () => {
+        videoEl.play().then(resolve).catch(reject);
+      };
+      videoEl.onerror = reject;
+    });
+
+    camDot.className   = 'dot active';
+    camLabel.textContent = 'Camera: Active';
+    return true;
+
+  } catch (err) {
+    console.error('[Camera]', err);
+    camDot.className   = 'dot error';
+    camLabel.textContent = 'Camera: Denied';
+    denyOver.classList.remove('hidden');
+    return false;
+  }
+}
+
+/* ── Loading helpers ────────────────────────────────────── */
+function setLoading(msg) {
+  loadText.textContent = msg;
+}
+function hideLoading() {
+  loadOver.classList.add('fade-out');
+  setTimeout(() => { loadOver.style.display = 'none'; }, 900);
+}
+
+/* ── Boot sequence ──────────────────────────────────────── */
+async function boot() {
+  // Start Three.js render loop immediately (shows background while loading)
+  requestAnimationFrame(animate);
+
+  const camOk = await setupCamera();
+  if (!camOk) return;
+
+  setLoading('Loading AI hand tracker…');
+  const trackerOk = await tracker.init(videoEl, msg => setLoading(msg));
+  if (!trackerOk) {
+    trackDot.className    = 'dot error';
+    trackLabel.textContent  = 'Tracker: Failed';
+  }
+
+  hideLoading();
+}
+
+boot();
